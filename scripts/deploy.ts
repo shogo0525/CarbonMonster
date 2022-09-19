@@ -1,22 +1,50 @@
-import { ethers } from "hardhat";
+import { ethers, artifacts } from "hardhat";
+import path from "path";
+import { CarbonMonster } from "../typechain-types";
 
 async function main() {
-  const currentTimestampInSeconds = Math.round(Date.now() / 1000);
-  const ONE_YEAR_IN_SECS = 365 * 24 * 60 * 60;
-  const unlockTime = currentTimestampInSeconds + ONE_YEAR_IN_SECS;
+  const [deployer] = await ethers.getSigners();
 
-  const lockedAmount = ethers.utils.parseEther("1");
+  console.log("Deploying contracts with the account:", deployer.address);
 
-  const Lock = await ethers.getContractFactory("Lock");
-  const lock = await Lock.deploy(unlockTime, { value: lockedAmount });
+  console.log("Account balance:", (await deployer.getBalance()).toString());
 
-  await lock.deployed();
+  const CarbonMonster = await ethers.getContractFactory("CarbonMonster");
+  const carbonMonster = await CarbonMonster.deploy();
+  await carbonMonster.deployed();
 
-  console.log(`Lock with 1 ETH and unlock timestamp ${unlockTime} deployed to ${lock.address}`);
+  console.log("CarbonMonster address:", carbonMonster.address);
+
+  saveFrontendFiles(carbonMonster);
 }
 
-// We recommend this pattern to be able to use async/await everywhere
-// and properly handle errors.
+function saveFrontendFiles(carbonMonster: CarbonMonster) {
+  const fs = require("fs");
+  const contractsDir = path.join(
+    __dirname,
+    "..",
+    "frontend",
+    "src",
+    "contracts"
+  );
+
+  if (!fs.existsSync(contractsDir)) {
+    fs.mkdirSync(contractsDir);
+  }
+
+  fs.writeFileSync(
+    path.join(contractsDir, "contract-address.json"),
+    JSON.stringify({ CarbonMonster: carbonMonster.address }, undefined, 2)
+  );
+
+  const CarbonMonsterArtifact = artifacts.readArtifactSync("CarbonMonster");
+
+  fs.writeFileSync(
+    path.join(contractsDir, "CarbonMonster.json"),
+    JSON.stringify(CarbonMonsterArtifact, null, 2)
+  );
+}
+
 main().catch((error) => {
   console.error(error);
   process.exitCode = 1;
